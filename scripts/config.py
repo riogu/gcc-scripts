@@ -25,7 +25,7 @@ IGNORE_PATTERNS = ["g++.dg/modules/"]
 # 'full', which globs every *.sum); 'est' = (build_s, test_s) at BASE_NPROC.
 MODES = {
     "full":      {"make": ["check"],                  "cwd": "root",
-                  "sums": ["*"],                       "est": (30, 70 * 60)},
+                  "sums": ["*"],                       "est": (30, 180 * 60)},
     "c++-all":   {"make": ["check-c++-all"],          "cwd": "gcc",
                   "sums": ["g++/g++.sum"],             "est": (30, 37 * 60)},
     "analyzer":  {"make": ["check-gcc", "check-g++"], "cwd": "gcc",

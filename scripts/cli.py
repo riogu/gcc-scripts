@@ -6,7 +6,6 @@ from .ui import Colors
 
 def build_parser() -> argparse.ArgumentParser:
     ap = argparse.ArgumentParser(
-        description="GCC testing workflow",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=f"""
 {Colors.CYAN}Modes:{Colors.NC} full (default) | c++-all | analyzer
