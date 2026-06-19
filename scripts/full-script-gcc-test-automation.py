@@ -51,8 +51,14 @@ IGNORE_PATTERNS = ["g++.dg/modules/"]   # known-flaky, race-prone; comparison no
 # no per-mode cache. Targeted runs are the only thing that never caches.
 
 class Colors:
-    RED, GREEN, YELLOW = '\033[0;31m', '\033[0;32m', '\033[1;33m'
-    BLUE, CYAN, MAGENTA, NC = '\033[0;34m', '\033[0;36m', '\033[0;35m', '\033[0m'
+    USE_COLORS = sys.stdout.isatty()
+    RED = '\033[0;31m' if USE_COLORS else ''
+    GREEN = '\033[0;32m' if USE_COLORS else ''
+    YELLOW = '\033[1;33m' if USE_COLORS else ''
+    BLUE = '\033[0;34m' if USE_COLORS else ''
+    CYAN = '\033[0;36m' if USE_COLORS else ''
+    MAGENTA = '\033[0;35m' if USE_COLORS else ''
+    NC = '\033[0m' if USE_COLORS else ''
 
 
 def log(level_color, tag, msg, err=False):
@@ -274,7 +280,7 @@ def discover_sums(d: Path, prefix: str) -> List[Tuple[str, Path]]:
 def latest_trunk_commit() -> Optional[str]:
     summ = TEST_RESULTS_DIR / "latest-trunk" / "summary.txt"
     if summ.exists():
-        for line in open(summ):
+        for line in summ.read_text().splitlines():
             if line.startswith("Trunk Commit:"):
                 return line.split(":", 1)[1].strip()
     return None
