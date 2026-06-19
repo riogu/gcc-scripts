@@ -44,9 +44,11 @@ MODES = {
     "targeted":  {"make": ["check-g++"],                  "cwd": "gcc",
                   "sums": ["g++/g++.sum"],                 "est": (900, 60)},
 }
+
+IGNORE_PATTERNS = ["g++.dg/modules/"]   # known-flaky, race-prone; comparison noise only
+
 # latest-trunk holds whatever you last built as your default baseline; there is
 # no per-mode cache. Targeted runs are the only thing that never caches.
-
 
 class Colors:
     RED, GREEN, YELLOW = '\033[0;31m', '\033[0;32m', '\033[1;33m'
@@ -255,6 +257,9 @@ def compare_results(baseline: List[Tuple[str, Path]], current: List[Tuple[str, P
         log_info(f"Comparing {suite}...")
         out = subprocess.run([str(script), str(base), str(cur)],
                              capture_output=True, text=True).stdout
+        if IGNORE_PATTERNS:
+            out = "\n".join(l for l in out.splitlines()
+                            if not any(p in l for p in IGNORE_PATTERNS))
         (results_dir / f"comparison-{suite}.txt").write_text(out)
         print(f"\n{Colors.MAGENTA}Comparison ({suite}):{Colors.NC}\n{out}")
 
