@@ -15,10 +15,10 @@ def _log(color, tag, msg, err=False):
     print(f"{color}[{tag}]{Colors.NC} {msg}", file=sys.stderr if err else sys.stdout)
 
 
-def info(m):    _log(Colors.BLUE, "INFO", m)
-def success(m): _log(Colors.GREEN, "SUCCESS", m)
-def warning(m): _log(Colors.YELLOW, "WARNING", m)
-def error(m):   _log(Colors.RED, "ERROR", m, err=True)
+def log_info(m):    _log(Colors.BLUE, "INFO", m)
+def log_success(m): _log(Colors.GREEN, "SUCCESS", m)
+def log_warning(m): _log(Colors.YELLOW, "WARNING", m)
+def log_error(m):   _log(Colors.RED, "ERROR", m, err=True)
 
 
 def die(m):
