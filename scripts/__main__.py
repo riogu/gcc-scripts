@@ -8,7 +8,8 @@ from .cli import build_parser
 from .config import RunConfig, get_nproc, GCC_DEV_DIR, TEST_RESULTS_DIR, TRUNK_DIR
 from .engine import build_and_test, compare_results
 from .baseline import (resolve_baseline, write_summary, write_trunk_summary,
-                       symlink_latest, list_previous_names, list_runs_for_name)
+                       symlink_latest, list_previous_names, list_runs_for_name,
+                       diff_runs)
 
 
 def _final(results_dir: Path, name: str, cfg: RunConfig, timings: dict):
@@ -29,6 +30,11 @@ def main():
     if args.list_runs:
         if not args.name: ui.die("--list-runs requires -n/--name")
         list_runs_for_name(args.name); return
+    if args.diff:
+        # pure comparison of two existing result dirs; TRUNK_DIR supplies
+        # contrib/compare_tests (no build/test happens here).
+        diff_runs(args.diff[0], args.diff[1], TRUNK_DIR)
+        return
 
     cfg = RunConfig(
         mode="check-g++" if args.only_check_gpp else args.mode,
@@ -49,13 +55,13 @@ def main():
         rdir.mkdir(parents=True, exist_ok=True)
         ui.info(f"Trunk-only ({cfg.effective_mode})"
                 + (f" -> named baseline '{args.name}'" if named else ""))
-        timings, branch, commit, _ = build_and_test("Trunk", TRUNK_DIR, rdir, cfg)
+        timings, branch, commit, sums = build_and_test("Trunk", TRUNK_DIR, rdir, cfg)
         if named:
-            write_trunk_summary(rdir / "summary.txt", commit, branch, ts)
+            write_trunk_summary(rdir / "summary.txt", commit, branch, ts, timings, sums)
             ui.info(f"Saved as '{rdir.name}'. Use: --compare-against {args.name}")
         elif cfg.cacheable:
             symlink_latest(rdir, "trunk")
-            write_trunk_summary(rdir / "summary.txt", commit, branch, ts)
+            write_trunk_summary(rdir / "summary.txt", commit, branch, ts, timings, sums)
             ui.info("Saved as latest-trunk (your default baseline).")
         else:
             ui.warning("Targeted run: NOT saved as latest-trunk.")

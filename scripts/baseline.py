@@ -33,8 +33,28 @@ def symlink_latest(results_dir: Path, name: str):
     link.symlink_to(results_dir)
 
 
-def write_trunk_summary(path: Path, commit: str, branch: str, ts: str):
-    path.write_text(f"Trunk Commit: {commit}\nTrunk Branch: {branch}\nTimestamp: {ts}\n")
+def write_trunk_summary(path: Path, commit: str, branch: str, ts: str,
+                        timings: Optional[dict] = None, sums: Optional[Sums] = None):
+    with open(path, 'w') as f:
+        f.write("GCC Trunk Baseline Summary\n" + "=" * 70 + "\n")
+        f.write(f"Timestamp: {ts}\n")
+        f.write(f"Trunk Branch: {branch} ({commit[:12]})\n")
+        if timings:
+            f.write("\nTiming\n" + "-" * 70 + "\n")
+            for k, v in timings.items():
+                f.write(f"{k.replace('_', ' ').title()}: {ui.fmt_time(int(v))}\n")
+            f.write(f"Total: {ui.fmt_time(int(sum(timings.values())))}\n")
+        if sums:
+            f.write("\nQuick Stats\n" + "=" * 70 + "\n")
+            _stats_block(f, sums, "TRUNK")
+
+
+def _stats_block(f, sums: Sums, tag: str):
+    """Write the '# of ...' summary lines for each suite's sum under a tag."""
+    for suite, p in sums:
+        if p.exists():
+            f.write(f"\n{tag} [{suite}]:\n")
+            f.writelines(l for l in open(p) if l.startswith("# of"))
 
 
 def write_summary(path: Path, name: str, ts: str, source_dir: Path, cfg: RunConfig,
@@ -51,14 +71,21 @@ def write_summary(path: Path, name: str, ts: str, source_dir: Path, cfg: RunConf
             f.write(f"{k.replace('_', ' ').title()}: {ui.fmt_time(int(v))}\n")
         f.write(f"Total: {ui.fmt_time(int(sum(timings.values())))}\n")
         f.write("\nQuick Stats\n" + "=" * 70 + "\n")
+        _stats_block(f, baseline_sums, "BASELINE")
+        _stats_block(f, source_sums, "TESTBRANCH")
 
-        def stats(sums, tag):
-            for suite, p in sums:
-                if p.exists():
-                    f.write(f"\n{tag} [{suite}]:\n")
-                    f.writelines(l for l in open(p) if l.startswith("# of"))
-        stats(baseline_sums, "BASELINE")
-        stats(source_sums, "TESTBRANCH")
+
+def write_diff_summary(path: Path, ts: str, base_label: str, curr_label: str,
+                       baseline_sums: Sums, current_sums: Sums):
+    """Summary for a standalone --diff of two existing result dirs (no build)."""
+    with open(path, 'w') as f:
+        f.write("GCC Diff Summary\n" + "=" * 70 + "\n")
+        f.write(f"Timestamp: {ts}\n")
+        f.write(f"Baseline:   {base_label}\n")
+        f.write(f"Testbranch: {curr_label}\n")
+        f.write("\nQuick Stats\n" + "=" * 70 + "\n")
+        _stats_block(f, baseline_sums, "BASELINE")
+        _stats_block(f, current_sums, "TESTBRANCH")
 
 
 # ------------------------------------------------------------------- listings
@@ -101,6 +128,35 @@ def list_runs_for_name(name: str):
     print(f"\n{ui.Colors.CYAN}Runs for '{name}':{ui.Colors.NC}")
     for r in runs:
         print(f"  - {r.name.replace(f'{name}_', '')}")
+
+
+def _load_baseline_dir(bid: str) -> Tuple[Path, Sums]:
+    """Resolve a result-dir identifier and load its sums (source- or trunk-)."""
+    d = find_baseline_run(bid)
+    if not d:
+        list_previous_names(); ui.die(f"Result dir not found: {bid}")
+    sums = discover_sums(d, "source") or discover_sums(d, "trunk")
+    if not sums:
+        ui.die(f"No .sum files in {d}")
+    return d, sums
+
+
+def diff_runs(base_id: str, curr_id: str, compare_tool_dir: Path) -> Path:
+    """Compare two existing result dirs with no build/test. Returns output dir.
+    compare_tool_dir just needs to contain contrib/compare_tests."""
+    from .engine import compare_results
+    base_dir, base_sums = _load_baseline_dir(base_id)
+    curr_dir, curr_sums = _load_baseline_dir(curr_id)
+
+    ts = f"{datetime.now():%Y-%m-%d_%H:%M:%S}"
+    out = TEST_RESULTS_DIR / f"diff_{ts}"
+    out.mkdir(parents=True, exist_ok=True)
+    ui.info(f"Diffing {base_dir.name} (baseline) vs {curr_dir.name} (testbranch)")
+    compare_results(base_sums, curr_sums, out, compare_tool_dir)
+    write_diff_summary(out / "summary.txt", ts, base_dir.name, curr_dir.name,
+                       base_sums, curr_sums)
+    ui.info(f"Diff + summary written to {out}")
+    return out
 
 
 # ----------------------------------------------------------- baseline resolver
@@ -147,5 +203,5 @@ def resolve_baseline(args, cfg: RunConfig, results_dir: Path,
     timings.update(tt)
     if cfg.cacheable:
         symlink_latest(out_dir, "trunk")
-        write_trunk_summary(out_dir / "summary.txt", tc, tb, f"{datetime.now():%Y-%m-%d_%H:%M:%S}")
+        write_trunk_summary(out_dir / "summary.txt", tc, tb, f"{datetime.now():%Y-%m-%d_%H:%M:%S}", tt, sums)
     return sums, f"trunk {tc[:12]}"

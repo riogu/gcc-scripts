@@ -42,4 +42,6 @@ def build_parser() -> argparse.ArgumentParser:
     ap.add_argument("--runtestflags", metavar="FLAGS", help="targeted RUNTESTFLAGS (g++ harness; not cached)")
     ap.add_argument("--list", action="store_true", help="list previous run names")
     ap.add_argument("--list-runs", action="store_true", help="list runs for -n NAME")
+    ap.add_argument("--diff", nargs=2, metavar=("BASE", "CURR"),
+                    help="compare two existing result dirs; no build/test")
     return ap
